@@ -22,6 +22,7 @@ st.set_page_config(
     }
 )
 
+
 # Função para carregar animações Lottie
 def load_lottieurl(url: str):
     try:
@@ -31,6 +32,7 @@ def load_lottieurl(url: str):
     except requests.exceptions.RequestException:
         pass
     return None
+
 
 # Função para limpar e validar a entrada de números
 def parse_and_clean_numbers(raw_text: str):
@@ -43,6 +45,7 @@ def parse_and_clean_numbers(raw_text: str):
         except ValueError:
             pass
     return valid_numbers
+
 
 # Função de cálculo
 def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
@@ -60,8 +63,11 @@ def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
     st.session_state.tempo_execucao = f"{end_time - start_time:.2f} segundos"
     return None
 
+
 # Carregar CSS customizado
-st.markdown("""<style>.card{background-color:#FFFFFF;border-radius:10px;padding:25px;box-shadow:0 4px 8px 0 rgba(0,0,0,0.1);transition:0.3s;}.card:hover{box-shadow:0 8px 16px 0 rgba(0,0,0,0.2);}.stButton>button{border-radius:10px;border:2px solid #007BFF;background-color:#007BFF;color:white;transition:all 0.2s ease-in-out;font-weight:bold;}.stButton>button:hover{border-color:#0056b3;background-color:#0056b3;}</style>""", unsafe_allow_html=True)
+st.markdown(
+    """<style>.card{background-color:#FFFFFF;border-radius:10px;padding:25px;box-shadow:0 4px 8px 0 rgba(0,0,0,0.1);transition:0.3s;}.card:hover{box-shadow:0 8px 16px 0 rgba(0,0,0,0.2);}.stButton>button{border-radius:10px;border:2px solid #007BFF;background-color:#007BFF;color:white;transition:all 0.2s ease-in-out;font-weight:bold;}.stButton>button:hover{border-color:#0056b3;background-color:#0056b3;}</style>""",
+    unsafe_allow_html=True)
 
 # ======================================================================================
 # INTERFACE DA APLICAÇÃO
@@ -81,7 +87,7 @@ selected = option_menu(
     styles={
         "container": {"padding": "0!important", "background-color": "#fafafa", "margin-top": "-30px"},
         "icon": {"color": "#007BFF", "font-size": "20px"},
-        "nav-link": {"font-size": "18px", "text-align": "center", "margin":"0px", "--hover-color": "#eee"},
+        "nav-link": {"font-size": "18px", "text-align": "center", "margin": "0px", "--hover-color": "#eee"},
         "nav-link-selected": {"background-color": "#E0EFFF"},
         # <<< A CORREÇÃO MAIS IMPORTANTE ESTÁ AQUI. A BARRA É REMOVIDA >>>
         "menu-title": {"display": "none"},
@@ -106,8 +112,10 @@ if selected == "Conciliador":
             valid_numbers = parse_and_clean_numbers(numeros_input_str)
             if valid_numbers: st.info(f"✅ **{len(valid_numbers)}** notas válidas inseridas.")
         with st.expander("⚙️ Opções Avançadas"):
-            max_len_input = st.number_input(label="Profundidade Máxima da Busca", min_value=1, value=15, step=1, help="Define o número máximo de notas a serem combinadas.")
-            if max_len_input > 18: st.warning(f"**Atenção:** Uma busca com profundidade **{max_len_input}** pode ser extremamente lenta.")
+            max_len_input = st.number_input(label="Profundidade Máxima da Busca", min_value=1, value=15, step=1,
+                                            help="Define o número máximo de notas a serem combinadas.")
+            if max_len_input > 18: st.warning(
+                f"**Atenção:** Uma busca com profundidade **{max_len_input}** pode ser extremamente lenta.")
         buscar = st.button("🔍 Iniciar Análise", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     if buscar:
@@ -127,23 +135,39 @@ if selected == "Conciliador":
                 result_placeholder.empty()
                 if resultado:
                     st.balloons()
-                    col_res1, col_res2 = st.columns([1, 2]); 
+                    col_res1, col_res2 = st.columns([1, 2]);
                     with col_res1:
                         if lottie_success: st_lottie(lottie_success, height=200)
                     with col_res2:
-                        st.success("Combinação Encontrada!"); resultado_final = [x / 100 for x in resultado]; st.metric(label="Soma Verificada", value=f"R$ {sum(resultado_final):,.2f}"); st.caption(f"Tempo de busca: {st.session_state.get('tempo_execucao', 'N/A')}")
-                    st.write("**Notas que compõem o valor total:**"); st.dataframe(resultado_final, use_container_width=True, hide_index=True, column_config={"value": st.column_config.NumberColumn("Valor", format="R$ %.2f")})
+                        st.success("Combinação Encontrada!");
+                        resultado_final = [x / 100 for x in resultado];
+                        st.metric(label="Soma Verificada", value=f"R$ {sum(resultado_final):,.2f}");
+                        st.caption(f"Tempo de busca: {st.session_state.get('tempo_execucao', 'N/A')}")
+                    st.write("**Notas que compõem o valor total:**");
+                    st.dataframe(resultado_final, use_container_width=True, hide_index=True,
+                                 column_config={"value": st.column_config.NumberColumn("Valor", format="R$ %.2f")})
                 else:
-                    col_res1, col_res2 = st.columns([1, 2]); 
+                    col_res1, col_res2 = st.columns([1, 2]);
                     with col_res1:
                         if lottie_error: st_lottie(lottie_error, height=180)
                     with col_res2:
-                        st.error("Nenhuma combinação encontrada."); st.caption(f"Tempo de busca: {st.session_state.get('tempo_execucao', 'N/A')}"); st.info(f"Dica: A busca foi limitada a combinações de até **{max_len_input}** notas.")
-            except Exception as e: st.error(f"Ocorreu um erro inesperado durante o cálculo: {e}")
-            
+                        st.error("Nenhuma combinação encontrada.");
+                        st.caption(f"Tempo de busca: {st.session_state.get('tempo_execucao', 'N/A')}");
+                        st.info(f"Dica: A busca foi limitada a combinações de até **{max_len_input}** notas.")
+            except Exception as e:
+                st.error(f"Ocorreu um erro inesperado durante o cálculo: {e}")
+
 elif selected == "Guia de Ajuda":
     # Guia de ajuda... (idêntico ao anterior)
-    st.title("📖 Guia de Utilização"); st.markdown("---"); st.info("Utilize os menus abaixo para expandir e ver as instruções detalhadas de cada tópico.")
-    with st.expander("🎯 Qual o objetivo desta ferramenta?"): st.write("""Esta aplicação automatiza a tarefa de **encontrar qual grupo de notas fiscais corresponde a um pagamento total recebido**.""")
-    with st.expander("🚀 Como usar o Conciliador? (Passo a Passo)"): st.markdown("""1. **Valor Total:** Insira o valor exato recebido.\n2. **Lista de Notas:** Cole todos os valores das notas pendentes.\n3. **Opções Avançadas (Opcional):** Ajuste a 'Profundidade Máxima da Busca'.\n4. **Analisar:** Clique em `Iniciar Análise`.""")
-    with st.expander("💡 Dicas e Perguntas Frequentes (FAQ)"): st.markdown("""- **Está demorando, é normal?** Sim, listas grandes e profundidade de busca alta podem levar minutos.\n- **Não encontrou nada, e agora?** Verifique os números. Se corretos, aumente a profundidade da busca em 'Opções Avançadas'.\n- **A ferramenta ignora textos?** Sim. 'Total: R$ 1.234,56' será lido como `1234.56`.""")
+    st.title("📖 Guia de Utilização");
+    st.markdown("---");
+    st.info("Utilize os menus abaixo para expandir e ver as instruções detalhadas de cada tópico.")
+    with st.expander("🎯 Qual o objetivo desta ferramenta?"):
+        st.write(
+            """Esta aplicação automatiza a tarefa de **encontrar qual grupo de notas fiscais corresponde a um pagamento total recebido**.""")
+    with st.expander("🚀 Como usar o Conciliador? (Passo a Passo)"):
+        st.markdown(
+            """1. **Valor Total:** Insira o valor exato recebido.\n2. **Lista de Notas:** Cole todos os valores das notas pendentes.\n3. **Opções Avançadas (Opcional):** Ajuste a 'Profundidade Máxima da Busca'.\n4. **Analisar:** Clique em `Iniciar Análise`.""")
+    with st.expander("💡 Dicas e Perguntas Frequentes (FAQ)"):
+        st.markdown(
+            """- **Está demorando, é normal?** Sim, listas grandes e profundidade de busca alta podem levar minutos.\n- **Não encontrou nada, e agora?** Verifique os números. Se corretos, aumente a profundidade da busca em 'Opções Avançadas'.\n- **A ferramenta ignora textos?** Sim. 'Total: R$ 1.234,56' será lido como `1234.56`.""")
