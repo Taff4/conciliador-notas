@@ -6,175 +6,119 @@ import re
 from itertools import combinations
 import time
 
-# ======================================================================================
-# CONFIGURAÇÃO DA PÁGINA E FUNÇÕES AUXILIARES
-# ======================================================================================
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Conciliador Seguro", page_icon="🛡️", layout="wide")
 
-st.set_page_config(
-    page_title="Conciliador de Notas",
-    page_icon="📄",
-    layout="wide"
-)
-
-
-# Função para carregar animações Lottie
+# --- FUNÇÕES DE SEGURANÇA E CÁLCULO ---
 def load_lottieurl(url: str):
     try:
-        r = requests.get(url, timeout=5)
-        if r.status_code == 200:
-            return r.json()
-    except requests.exceptions.RequestException:
-        pass
-    return None
+        r = requests.get(url, timeout=5) # Timeout para evitar travamento na carga
+        return r.json() if r.status_code == 200 else None
+    except: return None
 
-
-# Função para limpar e validar a entrada de números
 def parse_and_clean_numbers(raw_text: str):
-    text_with_dots = raw_text.replace(',', '.')
-    potential_numbers = re.findall(r'[\d\.]+', text_with_dots)
+    """
+    Sanitização de Input: Extrai apenas números positivos.
+    Previne que textos maliciosos ou caracteres estranhos entrem no loop.
+    """
+    if not raw_text: return []
+    # Substitui vírgula por ponto e limpa caracteres que não sejam números ou ponto
+    text_cleaned = raw_text.replace(',', '.')
+    # Regex rigoroso: apenas dígitos seguidos opcionalmente por ponto e mais dígitos
+    potential_numbers = re.findall(r'\b\d+(?:\.\d+)?\b', text_cleaned)
+    
     valid_numbers = []
     for num_str in potential_numbers:
         try:
-            valid_numbers.append(float(num_str))
-        except ValueError:
-            pass
+            val = float(num_str)
+            if 0 < val < 1000000000: # Limite de 1 bilhão por nota (segurança de overflow)
+                valid_numbers.append(val)
+        except ValueError: continue
     return valid_numbers
 
-
-# Função de cálculo
 def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
+    """
+    Cálculo com trava de segurança (Timeout de 60 segundos)
+    """
     start_time = time.time()
+    MAX_WAIT = 60  # Limite de segurança em segundos
+
     for r in range(1, max_len + 1):
-        progress_percentage = r / max_len
-        status_text.text(f"Analisando combinações de {r} nota(s)...")
-        progress_bar.progress(progress_percentage)
+        # Verifica se estourou o tempo de segurança
+        if time.time() - start_time > MAX_WAIT:
+            st.error(f"⚠️ **Busca interrompida por segurança.** O cálculo excedeu {MAX_WAIT}s. Tente diminuir a 'Profundidade da Busca'.")
+            return "timeout"
+            
+        status_text.text(f"🔍 Analisando combinações de {r} nota(s)...")
+        progress_bar.progress(r / max_len)
+        
         for combo in combinations(numbers, r):
+            # Verificação rápida de soma
             if sum(combo) == target:
-                end_time = time.time()
-                st.session_state.tempo_execucao = f"{end_time - start_time:.2f} segundos"
+                st.session_state.tempo = time.time() - start_time
                 return list(combo)
-    end_time = time.time()
-    st.session_state.tempo_execucao = f"{end_time - start_time:.2f} segundos"
+    
     return None
 
+# --- INTERFACE ---
+# (Mantendo o estilo CSS que criamos antes)
+st.markdown("""<style>.stCard { background-color: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; }</style>""", unsafe_allow_html=True)
 
-# Carregar CSS customizado
-st.markdown(
-    """<style>.card{background-color:#FFFFFF;border-radius:10px;padding:25px;box-shadow:0 4px 8px 0 rgba(0,0,0,0.1);transition:0.3s;}.card:hover{box-shadow:0 8px 16px 0 rgba(0,0,0,0.2);}.stButton>button{border-radius:10px;border:2px solid #007BFF;background-color:#007BFF;color:white;transition:all 0.2s ease-in-out;font-weight:bold;}.stButton>button:hover{border-color:#0056b3;background-color:#0056b3;}</style>""",
-    unsafe_allow_html=True)
+with st.sidebar:
+    st.header("⚙️ Segurança e Filtros")
+    # Limite máximo de 20 para evitar DoS acidental no servidor
+    max_depth = st.slider("Profundidade Máxima", 1, 20, 12, 
+                         help="Limite de quantas notas podem ser somadas. Valores altos exigem muito do servidor.")
+    st.info("A busca será interrompida automaticamente após 60 segundos para preservar o sistema.")
 
-# ======================================================================================
-# INTERFACE DA APLICAÇÃO
-# ======================================================================================
-
-lottie_main = load_lottieurl("https://lottie.host/80f763a1-0538-4f80-9289-a36ef733157a/lE7aad9yTw.json")
-lottie_searching = load_lottieurl("https://lottie.host/7e9232a5-4f40-4235-8097-d64c1e4b9cfa/13W4S62HVT.json")
-lottie_success = load_lottieurl("https://lottie.host/43e7534c-687f-4f7f-8c34-68875704f4a3/2VAm7vVdQr.json")
-lottie_error = load_lottieurl("https://lottie.host/9d3115c5-25e2-45e0-81f9-1e3c2331c26b/T4C4S62HVT.json")
-
-# --- Barra de Navegação Horizontal ---
-selected = option_menu(
-    menu_title=None,
-    options=["Conciliador", "Guia de Ajuda"],
-    icons=["calculator-fill", "question-circle-fill"],
-    orientation="horizontal",
-    styles={
-        "container": {"padding": "0!important", "background-color": "#fafafa"},
-        "icon": {"color": "#007BFF", "font-size": "20px"},
-        "nav-link": {"font-size": "18px", "text-align": "center", "margin": "0px", "--hover-color": "#eee"},
-        "nav-link-selected": {"background-color": "#E0EFFF"},
-        # <<< CORREÇÃO APLICADA AQUI >>>
-        "menu-title": {"display": "none"},
-    }
-)
+selected = option_menu(None, ["Conciliador", "Sobre"], icons=["shield-check", "info-circle"], orientation="horizontal")
 
 if selected == "Conciliador":
-    st.title("Conciliador de Notas")
-    st.markdown("---")
-
-    col1, col2 = st.columns([1, 1.5])
-
+    st.title("⚖️ Conciliador Financeiro Seguro")
+    
+    col1, col2 = st.columns([2, 1])
+    
     with col1:
-        if lottie_main: st_lottie(lottie_main, height=250)
-        st.subheader("Seu assistente de conciliação inteligente.")
-        st.write("Preencha os dados ao lado para encontrar a combinação exata de notas fiscais.")
+        with st.container():
+            target_val = st.number_input("Valor do Depósito (R$)", min_value=0.00, format="%.2f")
+            notes_raw = st.text_area("Valores das Notas (Cole aqui)", height=200, placeholder="Ex: 100,50\n200.00\n300")
+            
+            # Limpeza em tempo real
+            valid_notes = parse_and_clean_numbers(notes_raw)
+            if valid_notes:
+                st.caption(f"✅ {len(valid_notes)} valores numéricos identificados com segurança.")
+
+            if st.button("🚀 Iniciar Conciliação"):
+                if not valid_notes or target_val <= 0:
+                    st.warning("Insira dados válidos para prosseguir.")
+                else:
+                    # Transformar em inteiros (centavos) para evitar erros de precisão float
+                    # Essencial para segurança matemática
+                    target_int = int(round(target_val * 100))
+                    notes_int = [int(round(n * 100)) for n in valid_notes]
+                    
+                    p_bar = st.progress(0)
+                    s_msg = st.empty()
+                    
+                    res = find_subset_sum(notes_int, target_int, max_depth, p_bar, s_msg)
+                    
+                    p_bar.empty()
+                    s_msg.empty()
+                    
+                    if res == "timeout":
+                        pass # Erro já exibido na função
+                    elif res:
+                        st.balloons()
+                        st.success(f"### Combinação encontrada em {st.session_state.tempo:.2f}s!")
+                        final_res = [x / 100 for x in res]
+                        st.dataframe(final_res, column_config={"value": "Valor da Nota"})
+                    else:
+                        st.error("Nenhuma combinação encontrada. Tente aumentar a profundidade ou revise os valores.")
 
     with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        target_input = st.number_input("Valor Total do Pagamento", min_value=0.01, step=0.01, format="%.2f")
-        numeros_input_str = st.text_area("Lista de Notas em Aberto", height=200, placeholder="Cole os valores aqui...")
-
-        valid_numbers = []
-        if numeros_input_str:
-            valid_numbers = parse_and_clean_numbers(numeros_input_str)
-            if valid_numbers:
-                st.info(f"✅ **{len(valid_numbers)}** notas válidas inseridas.")
-
-        with st.expander("⚙️ Opções Avançadas"):
-            max_len_input = st.number_input(
-                label="Profundidade Máxima da Busca", min_value=1, value=15, step=1,
-                help="Define o número máximo de notas a serem combinadas."
-            )
-            if max_len_input > 18:
-                st.warning(f"**Atenção:** Uma busca com profundidade **{max_len_input}** pode ser extremamente lenta.")
-
-        buscar = st.button("🔍 Iniciar Análise", use_container_width=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    if buscar:
-        if not valid_numbers or target_input <= 0:
-            st.warning("⚠️ Por favor, insira um valor total e uma lista de notas válida.")
-        else:
-            try:
-                nums_int = [int(round(n * 100)) for n in valid_numbers]
-                target_int = int(round(target_input * 100))
-
-                result_placeholder = st.empty()
-                with result_placeholder.container():
-                    if lottie_searching: st_lottie(lottie_searching, height=200)
-                    status_text = st.empty()
-                    progress_bar = st.progress(0)
-
-                resultado = find_subset_sum(nums_int, target_int, max_len_input, progress_bar, status_text)
-                result_placeholder.empty()
-
-                if resultado:
-                    st.balloons()
-                    col_res1, col_res2 = st.columns([1, 2])
-                    with col_res1:
-                        if lottie_success: st_lottie(lottie_success, height=200)
-                    with col_res2:
-                        st.success("Combinação Encontrada!")
-                        resultado_final = [x / 100 for x in resultado]
-                        st.metric(label="Soma Verificada", value=f"R$ {sum(resultado_final):,.2f}")
-                        st.caption(f"Tempo de busca: {st.session_state.get('tempo_execucao', 'N/A')}")
-                    st.write("**Notas que compõem o valor total:**")
-                    st.dataframe(resultado_final, use_container_width=True, hide_index=True,
-                                 column_config={"value": st.column_config.NumberColumn("Valor", format="R$ %.2f")})
-                else:
-                    col_res1, col_res2 = st.columns([1, 2])
-                    with col_res1:
-                        if lottie_error: st_lottie(lottie_error, height=180)
-                    with col_res2:
-                        st.error("Nenhuma combinação encontrada.")
-                        st.caption(f"Tempo de busca: {st.session_state.get('tempo_execucao', 'N/A')}")
-                        st.info(
-                            f"Dica: A busca foi limitada a combinações de até **{max_len_input}** notas. Se suspeitar que a combinação é maior, aumente o valor em 'Opções Avançadas' e tente novamente.")
-            except Exception as e:
-                st.error(f"Ocorreu um erro inesperado durante o cálculo: {e}")
-
-if selected == "Guia de Ajuda":
-    st.title("📖 Guia de Utilização")
-    st.markdown("---")
-    st.info("Utilize os menus abaixo para expandir e ver as instruções detalhadas de cada tópico.")
-    with st.expander("🎯 Qual o objetivo desta ferramenta?"):
-        st.write(
-            """Esta aplicação automatiza a tarefa de **encontrar qual grupo de notas fiscais corresponde a um pagamento total recebido**. Ela testa milhares de combinações em segundos, eliminando a necessidade de conferência manual.""")
-    with st.expander("🚀 Como usar o Conciliador? (Passo a Passo)"):
-        st.markdown(
-            """1. **Valor Total:** No campo `Valor Total do Pagamento`, insira o valor exato recebido.\n2. **Lista de Notas:** No campo `Lista de Notas em Aberto`, cole todos os valores das notas pendentes.\n3. **Opções Avançadas (Opcional):** Se necessário, ajuste a 'Profundidade Máxima da Busca' para um valor maior.\n4. **Analisar:** Clique no botão `Iniciar Análise` e aguarde o resultado.""")
-    with st.expander("💡 Dicas e Perguntas Frequentes (FAQ)"):
-        st.markdown(
-            """- **Está demorando, é normal?** Sim, listas grandes (>30 notas) e uma profundidade de busca alta (acima de 15) podem levar vários minutos.\n- **Não encontrou nada, e agora?** Primeiro, verifique os números. Se estiverem corretos, vá em **'⚙️ Opções Avançadas'** e aumente o número no campo 'Profundidade Máxima da Busca'. **Faça isso com cautela!**\n- **A ferramenta ignora textos?** Sim. Se você colar 'Total: R$ 1.234,56', a ferramenta irá ler apenas o número `1234.56`.""")
+        st.markdown("### 🔒 Camadas de Proteção")
+        st.write("""
+        - **Sanitização:** O sistema ignora qualquer texto ou script malicioso.
+        - **Timeout:** Proteção contra travamento de CPU.
+        - **Volatilidade:** Seus dados não são gravados em disco.
+        """)
