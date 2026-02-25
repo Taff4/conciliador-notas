@@ -1,25 +1,24 @@
 # 📄 Conciliador de Notas
 
-Uma aplicação web desenvolvida em Python com Streamlit para encontrar a combinação exata de notas fiscais que somam um valor total de pagamento. Ideal para conciliação financeira automatizada.
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://conciliador-notas-j6zs7xlhec5cqht6kwv6nh.streamlit.app/)
+
+Uma aplicação web inteligente desenvolvida em **Python** com **Streamlit** para automação financeira. Ela encontra a combinação exata de notas fiscais que somam um valor total de pagamento recebido.
+
+## 🔗 Acesse a aplicação online
+[Clique aqui para testar o Conciliador de Notas](https://conciliador-notas-j6zs7xlhec5cqht6kwv6nh.streamlit.app/)
 
 ## ✨ Funcionalidades Principais
-
-- **Interface Intuitiva:** Design limpo e amigável, focado na facilidade de uso.
-- **Validação Inteligente:** Aceita valores com ponto ou vírgula e ignora textos (como "R$"), prevenindo erros.
-- **Feedback em Tempo Real:** Mostra a quantidade de notas válidas enquanto o usuário digita.
-- **Busca Flexível:** Permite que o usuário defina a "profundidade da busca" para casos mais complexos, com avisos de performance.
-- **Guia de Ajuda Integrado:** Uma seção de ajuda explica passo a passo como utilizar a ferramenta.
-
-## 🚀 Como Usar a Aplicação
-
-1.  Acesse a aba **Conciliador**.
-2.  No campo **Valor Total do Pagamento**, insira o valor exato recebido.
-3.  No campo **Lista de Notas em Aberto**, cole a lista de valores das notas pendentes.
-4.  (Opcional) Expanda as **Opções Avançadas** para ajustar a profundidade da busca se a combinação envolver muitas notas.
-5.  Clique em **Iniciar Análise** e aguarde o resultado.
+* **Interface Intuitiva:** Design limpo focado na experiência do usuário.
+* **Validação Inteligente:** Processa valores com ponto ou vírgula e ignora caracteres não numéricos (como "R$").
+* **Feedback em Tempo Real:** Contador de notas válidas e barra de progresso durante a análise.
+* **Busca Flexível:** Opções avançadas para definir a profundidade da busca de combinações.
 
 ## 🛠️ Tecnologias Utilizadas
+- **Linguagem:** Python 3.x
+- **Frontend/Host:** Streamlit
+- **Bibliotecas:** `streamlit-option-menu`, `streamlit-lottie`, `itertools` (para a lógica de combinações).
 
-- **Backend:** Python
-- **Frontend:** Streamlit
-- **Bibliotecas:** streamlit-option-menu, streamlit-lottie, requests
+## 🚀 Como rodar localmente
+1. Clone o repositório.
+2. Instale as dependências: `pip install streamlit streamlit-option-menu streamlit-lottie requests`
+3. Execute o comando: `streamlit run nome_do_seu_arquivo.py`
