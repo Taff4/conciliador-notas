@@ -154,7 +154,7 @@ else:
         </div>
         """, unsafe_allow_html=True)
         st.write("") # Espaçador
-        st.link_button("🌐 Ver Repositório no GitHub", "https://github.com/Taff4/Conciliador_Notas")
+        st.link_button("🌐 Ver Repositório no GitHub", "https://github.com/Taff4/conciliador-notas")
 
     st.markdown("---")
     
