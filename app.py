@@ -122,3 +122,50 @@ if selected == "Conciliador":
         - **Timeout:** Proteção contra travamento de CPU.
         - **Volatilidade:** Seus dados não são gravados em disco.
         """)
+        # --- ABA DE AJUDA / SOBRE ---
+else:
+    st.title("📖 Sobre o Conciliador")
+    st.markdown("---")
+    
+    col_sobre, col_img = st.columns([1.5, 1])
+    
+    with col_sobre:
+        st.markdown("""
+        ### 🎯 O que é esta ferramenta?
+        Este **Conciliador de Notas** foi desenvolvido para resolver um problema comum no setor financeiro: 
+        identificar quais notas fiscais compõem um pagamento de valor total quando não há uma lista clara.
+        
+        ### 🧠 Como funciona a Inteligência?
+        A aplicação utiliza um algoritmo de **análise combinatória** para testar as possibilidades 
+        dentro da sua lista de notas. 
+        
+        - **Busca Exata:** Ele não faz aproximações, ele busca o valor centavo por centavo.
+        - **Processamento em Centavos:** Para evitar erros de arredondamento do Python, 
+          todos os cálculos são convertidos internamente para inteiros (centavos).
+        """)
+
+    with col_img:
+        # Um toque de UX: Mostra quem é o desenvolvedor ou o link do projeto
+        st.markdown("""
+        <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px;">
+            <h4>👨‍💻 Desenvolvedor</h4>
+            <p><strong>Rafael (Taff4)</strong></p>
+            <p>Projeto focado em automação financeira e produtividade.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.write("") # Espaçador
+        st.link_button("🌐 Ver Repositório no GitHub", "https://github.com/Taff4/Conciliador_Notas")
+
+    st.markdown("---")
+    
+    # FAQ com Expanders para não poluir a tela
+    st.subheader("❓ Perguntas Frequentes")
+    
+    with st.expander("🛡️ Meus dados estão seguros?"):
+        st.write("Sim! Os dados colados são processados apenas na memória temporária do servidor e desaparecem assim que você fecha a aba. Nada é armazenado em bancos de dados.")
+        
+    with st.expander("⚡ Por que a busca pode demorar?"):
+        st.write("O tempo de busca cresce conforme o número de notas e a 'Profundidade' aumenta. Se você tem 50 notas e busca uma soma de 15 delas, o número de combinações possíveis é de bilhões!")
+        
+    with st.expander("📝 Formatação dos números"):
+        st.write("A ferramenta é inteligente: você pode colar valores com vírgula (padrão BR) ou ponto (padrão US). Textos como 'R$' ou 'Total' são filtrados automaticamente.")
