@@ -9,6 +9,20 @@ import time
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Conciliador Seguro", page_icon="🛡️", layout="wide")
 
+# --- INSERÇÃO DO GOOGLE ANALYTICS ---
+st.markdown(
+    """
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FZ55YE6JGV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-FZ55YE6JGV');
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
 # --- FUNÇÕES DE SEGURANÇA E CÁLCULO ---
 def load_lottieurl(url: str):
     try:
@@ -61,7 +75,7 @@ def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
     return None
 
 # --- INTERFACE ---
-# (Mantendo o estilo CSS que criamos antes)
+# Estilo CSS customizado
 st.markdown("""<style>.stCard { background-color: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; }</style>""", unsafe_allow_html=True)
 
 with st.sidebar:
@@ -93,7 +107,6 @@ if selected == "Conciliador":
                     st.warning("Insira dados válidos para prosseguir.")
                 else:
                     # Transformar em inteiros (centavos) para evitar erros de precisão float
-                    # Essencial para segurança matemática
                     target_int = int(round(target_val * 100))
                     notes_int = [int(round(n * 100)) for n in valid_notes]
                     
@@ -122,7 +135,8 @@ if selected == "Conciliador":
         - **Timeout:** Proteção contra travamento de CPU.
         - **Volatilidade:** Seus dados não são gravados em disco.
         """)
-        # --- ABA DE AJUDA / SOBRE ---
+
+# --- ABA DE AJUDA / SOBRE ---
 else:
     st.title("📖 Sobre o Conciliador")
     st.markdown("---")
@@ -145,7 +159,6 @@ else:
         """)
 
     with col_img:
-        # Um toque de UX: Mostra quem é o desenvolvedor ou o link do projeto
         st.markdown("""
         <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px;">
             <h4>👨‍💻 Desenvolvedor</h4>
@@ -158,7 +171,6 @@ else:
 
     st.markdown("---")
     
-    # FAQ com Expanders para não poluir a tela
     st.subheader("❓ Perguntas Frequentes")
     
     with st.expander("🛡️ Meus dados estão seguros?"):
