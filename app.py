@@ -12,59 +12,59 @@ st.set_page_config(page_title="Conciliador Seguro", page_icon="🛡️", layout=
 # --- FUNÇÕES DE SEGURANÇA E CÁLCULO ---
 def load_lottieurl(url: str):
     try:
-        r = requests.get(url, timeout=5) # Timeout para evitar travamento na carga
+        r = requests.get(url, timeout=5)
         return r.json() if r.status_code == 200 else None
     except:
         return None
 
 def parse_and_clean_numbers(raw_text: str):
     """
-    Sanitização de Input: Extrai apenas números positivos.
-    Previne que textos maliciosos ou caracteres estranhos entrem no loop.
+    Sanitização: Agora aceita números negativos (abatimentos) usando o sinal de menos (-).
     """
     if not raw_text: 
         return[]
-    # Substitui vírgula por ponto e limpa caracteres que não sejam números ou ponto
     text_cleaned = raw_text.replace(',', '.')
-    # Regex rigoroso: apenas dígitos seguidos opcionalmente por ponto e mais dígitos
-    potential_numbers = re.findall(r'\b\d+(?:\.\d+)?\b', text_cleaned)
+    # Regex atualizado para aceitar o sinal de "-" opcional no início do número
+    potential_numbers = re.findall(r'-?\b\d+(?:\.\d+)?\b', text_cleaned)
     
     valid_numbers =[]
     for num_str in potential_numbers:
         try:
             val = float(num_str)
-            if 0 < val < 1000000000: # Limite de 1 bilhão por nota (segurança de overflow)
+            # Aceita negativos, ignora zeros absolutos, trava limite de segurança
+            if -1000000000 < val < 1000000000 and val != 0: 
                 valid_numbers.append(val)
         except ValueError: 
             continue
     return valid_numbers
 
-def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
+def find_subset_sum(numbers, target, max_len, tolerance, progress_bar, status_text):
     """
-    Cálculo otimizado via Programação Dinâmica (Subset Sum Problem)
-    com trava de segurança (Timeout de 300 segundos).
+    Cálculo otimizado via DP com suporte a valores negativos e tolerância de centavos.
     """
     start_time = time.time()
-    MAX_WAIT = 300  # Novo limite expandido
+    MAX_WAIT = 300
 
-    # Otimização: Filtra valores maiores que o alvo e ordena de forma decrescente.
-    # Processar números maiores primeiro acelera drasticamente a busca.
-    valid_nums = sorted([n for n in numbers if n <= target], reverse=True)
+    # Otimização: Ordena pelo valor absoluto decrescente para chegar aos valores grandes mais rápido
+    valid_nums = sorted(numbers, key=lambda x: abs(x), reverse=True)
     if not valid_nums:
-        return None
+        return None, None
 
-    # dp armazena {soma_atual:[lista_de_notas_usadas]}
-    # Começamos com a soma 0, que não usa nenhuma nota.
+    # Recalcula o limite máximo de soma permitida para não cortar caminhos caso haja notas negativas
+    sum_negatives = sum(n for n in valid_nums if n < 0)
+    max_allowed_sum = target - sum_negatives + tolerance
+
     dp = {0:[]}
     total_nums = len(valid_nums)
     
+    best_match = None
+    closest_diff = float('inf')
+    
     for i, num in enumerate(valid_nums):
-        # Verifica se estourou o tempo de segurança
         if time.time() - start_time > MAX_WAIT:
-            st.error(f"⚠️ **Busca interrompida por segurança.** O cálculo excedeu {MAX_WAIT}s. Tente diminuir a 'Profundidade da Busca'.")
-            return "timeout"
+            st.error(f"⚠️ **Busca interrompida por segurança.** O cálculo excedeu {MAX_WAIT}s.")
+            return "timeout", None
             
-        # Feedback visual baseado no progresso da DP
         status_text.text(f"🔍 Programação Dinâmica: processando nota {i+1} de {total_nums}...")
         progress_bar.progress((i + 1) / total_nums)
         
@@ -72,28 +72,38 @@ def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
         for current_sum, combo in dp.items():
             new_sum = current_sum + num
             
-            # Limita pela profundidade máxima (max_len) e pelo valor alvo
-            if new_sum <= target and len(combo) < max_len:
-                # Encontrou a combinação exata!
+            # Limite superior com folga para notas negativas
+            if new_sum <= max_allowed_sum and len(combo) < max_len:
+                
+                # Checa se cravou o valor exato
                 if new_sum == target:
                     st.session_state.tempo = time.time() - start_time
-                    return combo + [num]
+                    return combo + [num], 0
                 
-                # Armazena apenas a menor combinação possível para chegar a esta soma,
-                # otimizando uso da memória e preservando "espaço" sob o limite de max_len.
+                # Checa se está dentro da margem de tolerância
+                diff = abs(new_sum - target)
+                if diff <= tolerance:
+                    if diff < closest_diff:
+                        closest_diff = diff
+                        best_match = combo +[num]
+                
                 if new_sum not in new_dp or len(combo) + 1 < len(new_dp[new_sum]):
                     new_dp[new_sum] = combo + [num]
                     
         dp = new_dp
         
-    return None
+    # Se não achou exato, mas achou um na tolerância, retorna ele
+    if best_match is not None:
+        st.session_state.tempo = time.time() - start_time
+        return best_match, closest_diff
+        
+    return None, None
 
 # --- INTERFACE ---
 st.markdown("""<style>.stCard { background-color: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; }</style>""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("⚙️ Segurança e Filtros")
-    # Limite máximo aumentado para 60 com a nova otimização
     max_depth = st.slider("Profundidade Máxima", 1, 60, 12, 
                          help="Limite de quantas notas podem ser somadas. Valores altos exigem muito do servidor.")
     st.info("A busca será interrompida automaticamente após 300 segundos para preservar o sistema.")
@@ -108,48 +118,59 @@ if selected == "Conciliador":
     with col1:
         with st.container():
             target_val = st.number_input("Valor do Depósito (R$)", min_value=0.00, format="%.2f")
-            notes_raw = st.text_area("Valores das Notas (Cole aqui)", height=200, placeholder="Ex: 100,50\n200.00\n300")
             
-            # Limpeza em tempo real
+            # NOVO CAMPO: Tolerância
+            tolerance_val = st.number_input("Margem de Tolerância (R$)", min_value=0.00, max_value=50.00, value=0.00, step=0.01, 
+                                            help="Útil para encontrar notas com pequenas diferenças de juros ou descontos.")
+            
+            notes_raw = st.text_area("Valores das Notas (Cole aqui)", height=200, placeholder="Ex: 100,50\n-15.00 (abatimento)\n300")
+            
             valid_notes = parse_and_clean_numbers(notes_raw)
             if valid_notes:
-                st.caption(f"✅ {len(valid_notes)} valores numéricos identificados com segurança.")
+                st.caption(f"✅ {len(valid_notes)} valores identificados (positivos e negativos).")
 
             if st.button("🚀 Iniciar Conciliação"):
                 if not valid_notes or target_val <= 0:
                     st.warning("Insira dados válidos para prosseguir.")
                 else:
-                    # Transformar em inteiros (centavos) para evitar erros de precisão float
                     target_int = int(round(target_val * 100))
-                    notes_int = [int(round(n * 100)) for n in valid_notes]
+                    tol_int = int(round(tolerance_val * 100))
+                    notes_int =[int(round(n * 100)) for n in valid_notes]
                     
                     p_bar = st.progress(0)
                     s_msg = st.empty()
                     
-                    res = find_subset_sum(notes_int, target_int, max_depth, p_bar, s_msg)
+                    # Agora a função recebe a tolerância e devolve a diferença (se houver)
+                    res, diff = find_subset_sum(notes_int, target_int, max_depth, tol_int, p_bar, s_msg)
                     
                     p_bar.empty()
                     s_msg.empty()
                     
                     if res == "timeout":
-                        pass # Erro já exibido na função
+                        pass
                     elif res:
                         st.balloons()
-                        st.success(f"### Combinação encontrada em {st.session_state.tempo:.2f}s!")
-                        final_res =[x / 100 for x in res]
+                        
+                        # Mensagem condicional se usou tolerância
+                        if diff == 0:
+                            st.success(f"### Combinação EXATA encontrada em {st.session_state.tempo:.2f}s!")
+                        else:
+                            diff_reais = diff / 100
+                            st.warning(f"### Combinação encontrada com diferença de R$ {diff_reais:.2f} (dentro da tolerância) em {st.session_state.tempo:.2f}s!")
+                        
+                        final_res = [x / 100 for x in res]
                         st.dataframe(final_res, column_config={"value": "Valor da Nota"})
                     else:
-                        st.error("Nenhuma combinação encontrada. Tente aumentar a profundidade ou revise os valores.")
+                        st.error("Nenhuma combinação encontrada. Revise os valores ou tente ajustar a 'Margem de Tolerância'.")
 
     with col2:
         st.markdown("### 🔒 Camadas de Proteção")
         st.write("""
-        - **Sanitização:** O sistema ignora qualquer texto ou script malicioso.
-        - **Timeout:** Proteção contra travamento de CPU.
-        - **Volatilidade:** Seus dados não são gravados em disco.
+        - **Sanitização:** Ignora textos maliciosos, mas aceita valores negativos para abatimentos (ex: -50.00).
+        - **Tolerância:** Ajuste para cobrir juros/descontos.
+        - **Timeout e Volatilidade:** Seus dados estão seguros e não sobrecarregam a máquina.
         """)
 
-# --- ABA DE AJUDA / SOBRE ---
 else:
     st.title("📖 Sobre o Conciliador")
     st.markdown("---")
@@ -159,16 +180,12 @@ else:
     with col_sobre:
         st.markdown("""
         ### 🎯 O que é esta ferramenta?
-        Este **Conciliador de Notas** foi desenvolvido para resolver um problema comum no setor financeiro: 
-        identificar quais notas fiscais compõem um pagamento de valor total quando não há uma lista clara.
+        Este **Conciliador de Notas** identifica quais notas fiscais compõem um pagamento quando não há uma lista clara.
         
         ### 🧠 Como funciona a Inteligência?
-        A aplicação utiliza um algoritmo de **análise combinatória** para testar as possibilidades 
-        dentro da sua lista de notas. 
-        
-        - **Busca Exata:** Ele não faz aproximações, ele busca o valor centavo por centavo.
-        - **Processamento em Centavos:** Para evitar erros de arredondamento do Python, 
-          todos os cálculos são convertidos internamente para inteiros (centavos).
+        Utilizamos **Programação Dinâmica**, que corta caminhos lógicos inúteis para achar resultados em milissegundos.
+        - Aceita números negativos (para devoluções/abatimentos).
+        - Possui margem de tolerância ajustável para lidar com centavos de juros ou desconto bancário.
         """)
 
     with col_img:
@@ -181,16 +198,3 @@ else:
         """, unsafe_allow_html=True)
         st.write("") 
         st.link_button("🌐 Ver Repositório no GitHub", "https://github.com/Taff4/conciliador-notas")
-
-    st.markdown("---")
-    
-    st.subheader("❓ Perguntas Frequentes")
-    
-    with st.expander("🛡️ Meus dados estão seguros?"):
-        st.write("Sim! Os dados colados são processados apenas na memória temporária do servidor e desaparecem assim que você fecha a aba. Nada é armazenado em bancos de dados.")
-        
-    with st.expander("⚡ Por que a busca pode demorar?"):
-        st.write("O tempo de busca cresce conforme o número de notas e a 'Profundidade' aumenta. Se você tem 50 notas e busca uma soma de 15 delas, o número de combinações possíveis é de bilhões!")
-        
-    with st.expander("📝 Formatação dos números"):
-        st.write("A ferramenta é inteligente: você pode colar valores com vírgula (padrão BR) ou ponto (padrão US). Textos como 'R$' ou 'Total' são filtrados automaticamente.")
