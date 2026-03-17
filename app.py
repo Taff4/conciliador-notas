@@ -23,13 +23,13 @@ def parse_and_clean_numbers(raw_text: str):
     Previne que textos maliciosos ou caracteres estranhos entrem no loop.
     """
     if not raw_text: 
-        return []
+        return[]
     # Substitui vírgula por ponto e limpa caracteres que não sejam números ou ponto
     text_cleaned = raw_text.replace(',', '.')
     # Regex rigoroso: apenas dígitos seguidos opcionalmente por ponto e mais dígitos
     potential_numbers = re.findall(r'\b\d+(?:\.\d+)?\b', text_cleaned)
     
-    valid_numbers = []
+    valid_numbers =[]
     for num_str in potential_numbers:
         try:
             val = float(num_str)
@@ -41,26 +41,51 @@ def parse_and_clean_numbers(raw_text: str):
 
 def find_subset_sum(numbers, target, max_len, progress_bar, status_text):
     """
-    Cálculo com trava de segurança (Timeout de 60 segundos)
+    Cálculo otimizado via Programação Dinâmica (Subset Sum Problem)
+    com trava de segurança (Timeout de 300 segundos).
     """
     start_time = time.time()
-    MAX_WAIT = 60  # Limite de segurança em segundos
+    MAX_WAIT = 300  # Novo limite expandido
 
-    for r in range(1, max_len + 1):
+    # Otimização: Filtra valores maiores que o alvo e ordena de forma decrescente.
+    # Processar números maiores primeiro acelera drasticamente a busca.
+    valid_nums = sorted([n for n in numbers if n <= target], reverse=True)
+    if not valid_nums:
+        return None
+
+    # dp armazena {soma_atual:[lista_de_notas_usadas]}
+    # Começamos com a soma 0, que não usa nenhuma nota.
+    dp = {0:[]}
+    total_nums = len(valid_nums)
+    
+    for i, num in enumerate(valid_nums):
         # Verifica se estourou o tempo de segurança
         if time.time() - start_time > MAX_WAIT:
             st.error(f"⚠️ **Busca interrompida por segurança.** O cálculo excedeu {MAX_WAIT}s. Tente diminuir a 'Profundidade da Busca'.")
             return "timeout"
             
-        status_text.text(f"🔍 Analisando combinações de {r} nota(s)...")
-        progress_bar.progress(r / max_len)
+        # Feedback visual baseado no progresso da DP
+        status_text.text(f"🔍 Programação Dinâmica: processando nota {i+1} de {total_nums}...")
+        progress_bar.progress((i + 1) / total_nums)
         
-        for combo in combinations(numbers, r):
-            # Verificação rápida de soma
-            if sum(combo) == target:
-                st.session_state.tempo = time.time() - start_time
-                return list(combo)
-    
+        new_dp = dp.copy()
+        for current_sum, combo in dp.items():
+            new_sum = current_sum + num
+            
+            # Limita pela profundidade máxima (max_len) e pelo valor alvo
+            if new_sum <= target and len(combo) < max_len:
+                # Encontrou a combinação exata!
+                if new_sum == target:
+                    st.session_state.tempo = time.time() - start_time
+                    return combo + [num]
+                
+                # Armazena apenas a menor combinação possível para chegar a esta soma,
+                # otimizando uso da memória e preservando "espaço" sob o limite de max_len.
+                if new_sum not in new_dp or len(combo) + 1 < len(new_dp[new_sum]):
+                    new_dp[new_sum] = combo + [num]
+                    
+        dp = new_dp
+        
     return None
 
 # --- INTERFACE ---
@@ -68,12 +93,12 @@ st.markdown("""<style>.stCard { background-color: white; padding: 20px; border-r
 
 with st.sidebar:
     st.header("⚙️ Segurança e Filtros")
-    # Limite máximo de 20 para evitar DoS acidental no servidor
-    max_depth = st.slider("Profundidade Máxima", 1, 20, 12, 
+    # Limite máximo aumentado para 60 com a nova otimização
+    max_depth = st.slider("Profundidade Máxima", 1, 60, 12, 
                          help="Limite de quantas notas podem ser somadas. Valores altos exigem muito do servidor.")
-    st.info("A busca será interrompida automaticamente após 60 segundos para preservar o sistema.")
+    st.info("A busca será interrompida automaticamente após 300 segundos para preservar o sistema.")
 
-selected = option_menu(None, ["Conciliador", "Sobre"], icons=["shield-check", "info-circle"], orientation="horizontal")
+selected = option_menu(None,["Conciliador", "Sobre"], icons=["shield-check", "info-circle"], orientation="horizontal")
 
 if selected == "Conciliador":
     st.title("⚖️ Conciliador Financeiro Seguro")
@@ -111,7 +136,7 @@ if selected == "Conciliador":
                     elif res:
                         st.balloons()
                         st.success(f"### Combinação encontrada em {st.session_state.tempo:.2f}s!")
-                        final_res = [x / 100 for x in res]
+                        final_res =[x / 100 for x in res]
                         st.dataframe(final_res, column_config={"value": "Valor da Nota"})
                     else:
                         st.error("Nenhuma combinação encontrada. Tente aumentar a profundidade ou revise os valores.")
