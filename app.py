@@ -1,36 +1,40 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
-from streamlit_lottie import st_lottie
-import requests
 import re
-from itertools import combinations
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Conciliador Seguro", page_icon="🛡️", layout="wide")
 
 # --- FUNÇÕES DE SEGURANÇA E CÁLCULO ---
-def load_lottieurl(url: str):
-    try:
-        r = requests.get(url, timeout=5)
-        return r.json() if r.status_code == 200 else None
-    except:
-        return None
-
 def parse_and_clean_numbers(raw_text: str):
+    """ Extrator robusto: Lida com formatos BR (1.234,50), US (1,234.50) e negativos. """
     if not raw_text: 
-        return[]
-    text_cleaned = raw_text.replace(',', '.')
-    potential_numbers = re.findall(r'-?\b\d+(?:\.\d+)?\b', text_cleaned)
+        return []
     
     valid_numbers =[]
-    for num_str in potential_numbers:
+    tokens = re.findall(r'-?\s*\d+(?:[.,]\d+)*', raw_text)
+    
+    for token in tokens:
+        token = token.replace(' ', '')
+        
+        if ',' in token and '.' in token:
+            if token.rfind(',') > token.rfind('.'):
+                clean_num = token.replace('.', '').replace(',', '.')
+            else:
+                clean_num = token.replace(',', '')
+        elif ',' in token:
+            clean_num = token.replace(',', '.')
+        else:
+            clean_num = token
+            
         try:
-            val = float(num_str)
+            val = float(clean_num)
             if -1000000000 < val < 1000000000 and val != 0: 
                 valid_numbers.append(val)
         except ValueError: 
             continue
+            
     return valid_numbers
 
 def find_subset_sum_fast(numbers, target, max_len, tolerance, progress_bar, status_text):
@@ -38,7 +42,7 @@ def find_subset_sum_fast(numbers, target, max_len, tolerance, progress_bar, stat
     start_time = time.time()
     MAX_WAIT = 300
     valid_nums = sorted(numbers, key=lambda x: abs(x), reverse=True)
-    if not valid_nums: return None, None
+    if not valid_nums: return None, None, 0
 
     sum_negatives = sum(n for n in valid_nums if n < 0)
     max_allowed_sum = target - sum_negatives + tolerance
@@ -49,8 +53,9 @@ def find_subset_sum_fast(numbers, target, max_len, tolerance, progress_bar, stat
     closest_diff = float('inf')
     
     for i, num in enumerate(valid_nums):
-        if time.time() - start_time > MAX_WAIT:
-            return "timeout", None
+        elapsed = time.time() - start_time
+        if elapsed > MAX_WAIT:
+            return "timeout", None, elapsed
             
         status_text.text(f"🔍 Busca Rápida: processando nota {i+1} de {total_nums}...")
         progress_bar.progress((i + 1) / total_nums)
@@ -60,30 +65,30 @@ def find_subset_sum_fast(numbers, target, max_len, tolerance, progress_bar, stat
             new_sum = current_sum + num
             
             if new_sum <= max_allowed_sum and len(combo) < max_len:
+                new_combo = combo + [num]
                 if new_sum == target:
-                    st.session_state.tempo = time.time() - start_time
-                    return combo + [num], 0
+                    return new_combo, 0, time.time() - start_time
                 
                 diff = abs(new_sum - target)
                 if diff <= tolerance:
                     if diff < closest_diff:
                         closest_diff = diff
-                        best_match = combo + [num]
+                        best_match = new_combo
                 
-                if new_sum not in new_dp or len(combo) + 1 < len(new_dp[new_sum]):
-                    new_dp[new_sum] = combo + [num]
+                if new_sum not in new_dp or len(new_combo) < len(new_dp[new_sum]):
+                    new_dp[new_sum] = new_combo
         dp = new_dp
         
+    elapsed = time.time() - start_time
     if best_match is not None:
-        st.session_state.tempo = time.time() - start_time
-        return best_match, closest_diff
-    return None, None
+        return best_match, closest_diff, elapsed
+    return None, None, elapsed
 
 def find_all_combinations(numbers, target, max_len, tolerance, progress_bar, status_text):
     """ Busca Profunda: Encontra MÚLTIPLAS combinações (Auditoria de Falsos Positivos) """
     start_time = time.time()
-    MAX_WAIT = 60  # Tempo menor por segurança
-    MAX_RESULTS = 5 # Limite de combinações para não travar a memória
+    MAX_WAIT = 60  
+    MAX_RESULTS = 10 # Limite ajustado para 10 opções
     results =[]
     
     valid_nums = sorted(numbers, key=lambda x: abs(x), reverse=True)
@@ -97,7 +102,6 @@ def find_all_combinations(numbers, target, max_len, tolerance, progress_bar, sta
         diff = abs(current_sum - target)
         if diff <= tolerance and len(path) > 0 and len(path) <= max_len:
             sorted_path = sorted(path)
-            # Evita duplicatas lógicas
             if not any(sorted_path == sorted(r[0]) for r in results):
                 results.append((path, diff))
                 
@@ -112,11 +116,9 @@ def find_all_combinations(numbers, target, max_len, tolerance, progress_bar, sta
         progress_bar.progress(0.8) 
         backtrack(0,[], 0)
     except TimeoutError:
-        st.session_state.tempo = time.time() - start_time
-        return "timeout", results
+        return "timeout", results, time.time() - start_time
         
-    st.session_state.tempo = time.time() - start_time
-    return "done", results
+    return "done", results, time.time() - start_time
 
 # --- INTERFACE ---
 st.markdown("""<style>.stCard { background-color: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; }</style>""", unsafe_allow_html=True)
@@ -129,10 +131,10 @@ with st.sidebar:
     st.subheader("🕵️‍♂️ Modo Auditoria")
     deep_search = st.toggle("Ativar Busca Profunda", value=False, help="Procura múltiplas combinações para verificar falsos positivos.")
     if deep_search:
-        st.warning("⚠️ **Atenção:** A busca profunda exige muito do sistema. Ela retornará no máximo **5 combinações** e será interrompida em **60 segundos** por segurança.")
+        st.warning("⚠️ **Atenção:** A busca profunda exige muito do sistema. Ela retornará no máximo **10 combinações** e será interrompida em **60 segundos** por segurança.")
 
 # MENU SUPERIOR COM 3 ABAS
-selected = option_menu(None, ["Conciliador", "Como Usar", "Sobre"], icons=["shield-check", "book", "info-circle"], orientation="horizontal")
+selected = option_menu(None,["Conciliador", "Como Usar", "Sobre"], icons=["shield-check", "book", "info-circle"], orientation="horizontal")
 
 # --- ABA 1: CONCILIADOR ---
 if selected == "Conciliador":
@@ -168,18 +170,17 @@ if selected == "Conciliador":
                     
                     # ROTA DA BUSCA PROFUNDA
                     if deep_search:
-                        status, results = find_all_combinations(notes_int, target_int, max_depth, tol_int, p_bar, s_msg)
+                        status, results, elapsed = find_all_combinations(notes_int, target_int, max_depth, tol_int, p_bar, s_msg)
                         p_bar.empty()
                         s_msg.empty()
                         
                         if status == "timeout" and not results:
                             st.error("⚠️ O limite de 60 segundos foi atingido e nenhuma combinação foi encontrada.")
                         elif results:
-                            st.balloons()
                             if status == "timeout":
-                                st.warning(f"⚠️ Tempo esgotado! Encontramos {len(results)} combinações antes de interromper (Tempo: {st.session_state.tempo:.2f}s).")
+                                st.warning(f"⚠️ Tempo esgotado! Encontramos {len(results)} combinações antes de interromper (Tempo: {elapsed:.2f}s).")
                             else:
-                                st.success(f"### Concluído! Encontramos {len(results)} combinação(ões) possível(is) em {st.session_state.tempo:.2f}s!")
+                                st.success(f"### Concluído! Encontramos {len(results)} combinação(ões) possível(is) em {elapsed:.2f}s!")
                             
                             for i, (res, diff) in enumerate(results):
                                 with st.expander(f"📌 Opção {i+1} - {len(res)} notas (Diferença: R$ {diff/100:.2f})", expanded=True):
@@ -189,18 +190,17 @@ if selected == "Conciliador":
                             
                     # ROTA DA BUSCA RÁPIDA (PADRÃO)
                     else:
-                        res, diff = find_subset_sum_fast(notes_int, target_int, max_depth, tol_int, p_bar, s_msg)
+                        res, diff, elapsed = find_subset_sum_fast(notes_int, target_int, max_depth, tol_int, p_bar, s_msg)
                         p_bar.empty()
                         s_msg.empty()
                         
                         if res == "timeout":
                             st.error("⚠️ Tempo limite esgotado. Tente ativar a Busca Profunda ou diminuir as notas.")
                         elif res:
-                            st.balloons()
                             if diff == 0:
-                                st.success(f"### Combinação EXATA encontrada em {st.session_state.tempo:.2f}s!")
+                                st.success(f"### Combinação EXATA encontrada em {elapsed:.2f}s!")
                             else:
-                                st.warning(f"### Combinação encontrada com diferença de R$ {diff/100:.2f} (dentro da tolerância) em {st.session_state.tempo:.2f}s!")
+                                st.warning(f"### Combinação encontrada com diferença de R$ {diff/100:.2f} (dentro da tolerância) em {elapsed:.2f}s!")
                             
                             st.dataframe([x / 100 for x in res], column_config={"value": "Valor da Nota"})
                         else:
@@ -226,7 +226,7 @@ elif selected == "Como Usar":
     A matemática do programa é exata, mas às vezes *mais de uma combinação* de notas pode dar o mesmo valor do depósito. 
     - **Exemplo:** O cliente depositou R$ 1.000,00. As notas A + B somam exatos R$ 1.000,00. Porém, por coincidência, as notas C + D + E do mesmo cliente também somam R$ 1.000,00.
     - **O que o sistema faz por padrão:** Para ser rápido, ele devolve a *primeira combinação válida* que encontrar e para de procurar. 
-    - **Como evitar problemas:** O financeiro sempre precisa checar se as notas apontadas fazem sentido. Se houver dúvida, ative o botão **Ativar Busca Profunda** na barra lateral. O sistema vai forçar uma varredura para listar até 5 combinações diferentes que chegam no mesmo valor (ideal para auditoria!).
+    - **Como evitar problemas:** O financeiro sempre precisa checar se as notas apontadas fazem sentido. Se houver dúvida, ative o botão **Ativar Busca Profunda** na barra lateral. O sistema vai forçar uma varredura para listar até 10 combinações diferentes que chegam no mesmo valor (ideal para auditoria!).
     """)
     
     st.subheader("2. Juros, Multas e Descontos (Margem de Tolerância)")
