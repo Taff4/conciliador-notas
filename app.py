@@ -128,7 +128,7 @@ with st.sidebar:
     max_depth = st.slider("Profundidade Máxima", 1, 60, 12, help="Limite de quantas notas podem ser somadas.")
     
     st.markdown("---")
-    st.subheader("🕵️‍♂️ Modo Auditoria")
+    st.subheader("Modo Auditoria")
     deep_search = st.toggle("Ativar Busca Profunda", value=False, help="Procura múltiplas combinações para verificar falsos positivos.")
     if deep_search:
         st.warning("⚠️ **Atenção:** A busca profunda exige muito do sistema. Ela retornará no máximo **10 combinações** e será interrompida em **60 segundos** por segurança.")
