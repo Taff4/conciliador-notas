@@ -271,7 +271,7 @@ else:
         st.markdown("""
         <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px;">
             <h4>👨‍💻 Desenvolvedor</h4>
-            <p><strong>Rafael (Taff4)</strong></p>
+            <p><strong>Rafael Lacerda</strong></p>
             <p>Projeto focado em automação financeira, inteligência processual e produtividade.</p>
         </div>
         """, unsafe_allow_html=True)
