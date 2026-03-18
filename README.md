@@ -3,10 +3,8 @@
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://conciliador-notas-j6zs7xlhec5cqht6kwv6nh.streamlit.app/)
 
 <p align="center">
-  <img src="https://via.placeholder.com/800x400.png?text=Adicione+aqui+o+Screenshot+ou+GIF+da+sua+aplicação" alt="Demonstração do Conciliador Financeiro" width="100%">
-</p>
-
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://conciliador-notas-j6zs7xlhec5cqht6kwv6nh.streamlit.app/)
+  <img src="https://drive.google.com/uc?export=view&id=1OGbyru3T_W05m-wZA0LnuDbMDAVu5f5I" alt="Demonstração do Conciliador Financeiro" width="100%">
+</p>>
 
 O **Conciliador Financeiro Seguro** é uma ferramenta de alta performance desenvolvida para automatizar a identificação de lotes de notas fiscais. Utilizando algoritmos avançados de busca, a aplicação resolve o desafio de encontrar quais combinações de valores (positivos ou negativos) resultam num montante específico de depósito ou pagamento.
 
